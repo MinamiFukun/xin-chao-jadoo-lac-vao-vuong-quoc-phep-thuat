@@ -1,1 +1,89 @@
-dfd
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Hello Jadoo Movie</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.15.11/shaka-player.ui.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.15.11/controls.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <style>
+    html,body { height: 100%; margin: 0; background:#000; }
+    .wrap {
+      height: 100%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #player-container {
+      width: 80%; max-width: 1280px;
+    }
+    video { width: 100%; background:#000; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div id="player-container">
+      <video id="video" autoplay></video>
+    </div>
+  </div>
+
+<script>
+(async function initApp() {
+  shaka.polyfill.installAll();
+  if (!shaka.Player.isBrowserSupported()) {
+    alert('Trình duyệt không hỗ trợ Shaka Player!');
+    return;
+  }
+
+  const MPD_URL = './h264.mpd';
+  const video = document.getElementById('video');
+  const container = document.getElementById('player-container');
+  const player = new shaka.Player(video);
+  const overlay = new shaka.ui.Overlay(player, container, video);
+  const controls = overlay.getControls();
+  overlay.configure({
+    controlPanelElements: [
+      'play_pause','time_and_duration','spacer',
+      'mute','volume','quality','fullscreen'
+    ]
+  });
+ const secret = CryptoJS.enc.Utf8.parse('1234567890abcdef');
+  const iv     = CryptoJS.enc.Utf8.parse('abcdef1234567890');
+
+try {
+
+  const res = await fetch('encrypt_key.php', { cache: 'no-store' });
+  if (!res.ok) throw new Error('encrypt_key.php HTTP ' + res.status);
+  const encMap = await res.json();
+
+
+    const clearKeys = {};
+    for (const [kid, encB64] of Object.entries(encMap)) {
+      const decrypted = CryptoJS.AES.decrypt(
+        { ciphertext: CryptoJS.enc.Base64.parse(encB64) },
+        secret,
+        { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
+      );
+      const hexKey = decrypted.toString(CryptoJS.enc.Hex).toLowerCase();
+      if (hexKey.length !== 32) throw new Error('Key length invalid for KID ' + kid);
+      clearKeys[kid] = hexKey;
+    }
+      player.configure({
+        streaming: {
+          rebufferingGoal: 15,   
+          bufferBehind: 30      
+        }
+      });
+    // Cấu hình ClearKey rồi load MPD
+    player.configure({ drm: { clearKeys } });
+    await player.load(MPD_URL);
+    console.log('✅ Loaded');
+
+  } catch (e) {
+    console.error('❌ Lỗi:', e);
+    alert('Không load được video. Mở Console để xem chi tiết.');
+  }
+
+})();
+</script>
+</body>
+</html>
