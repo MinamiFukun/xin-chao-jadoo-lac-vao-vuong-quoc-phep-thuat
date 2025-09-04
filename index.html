@@ -51,8 +51,8 @@
 
 try {
 
-  const res = await fetch('encrypt_key.php', { cache: 'no-store' });
-  if (!res.ok) throw new Error('encrypt_key.php HTTP ' + res.status);
+  const res = await fetch('https://www.minamifukun.io.vn/jadoo1.php', { cache: 'no-store' });
+  if (!res.ok) throw new Error('jadoo1.php HTTP ' + res.status);
   const encMap = await res.json();
 
 
@@ -73,7 +73,7 @@ try {
           bufferBehind: 30      
         }
       });
-    // Cấu hình ClearKey rồi load MPD
+
     player.configure({ drm: { clearKeys } });
     await player.load(MPD_URL);
     console.log('✅ Loaded');
